@@ -1,0 +1,19 @@
+cd ~/Desktop/Coursera/assignment-1-Hasala-Kavinda/finder-app
+
+mkdir -p ../assignments/assignment2
+
+# cross-compile
+make clean
+make CROSS_COMPILE=aarch64-none-linux-gnu-
+
+# capture
+{
+  echo "=== file writer (built with CROSS_COMPILE=aarch64-none-linux-gnu-) ==="
+  file writer
+} > ../assignments/assignment2/fileresult.txt
+
+cat ../assignments/assignment2/fileresult.txt
+
+# restore native build
+make clean && make
+file writer
