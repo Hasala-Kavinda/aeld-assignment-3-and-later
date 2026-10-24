@@ -1,4 +1,12 @@
 #include "systemcalls.h"
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 /**
  * @param cmd the command to execute with system()
@@ -9,15 +17,27 @@
 */
 bool do_system(const char *cmd)
 {
+    if (cmd == NULL) {
+        fprintf(stderr, "do_system: cmd is NULL\n");
+        return false;
+    }
 
-/*
- * TODO  add your code here
- *  Call the system() function with the command set in the cmd
- *   and return a boolean true if the system() call completed with success
- *   or false() if it returned a failure
-*/
+    int ret = system(cmd);
+    if (ret == -1) {
+        fprintf(stderr, "do_system: system() failed: %s\n", strerror(errno));
+        return false;
+    }
 
-    return true;
+    if (WIFEXITED(ret)) {
+        if (WEXITSTATUS(ret) == 0) {
+            return true;
+        }
+        fprintf(stderr, "do_system: command exited with status %d\n", WEXITSTATUS(ret));
+        return false;
+    }
+
+    fprintf(stderr, "do_system: command did not exit normally\n");
+    return false;
 }
 
 /**
@@ -45,23 +65,41 @@ bool do_exec(int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
-/*
- * TODO:
- *   Execute a system command by calling fork, execv(),
- *   and wait instead of system (see LSP page 161).
- *   Use the command[0] as the full path to the command to execute
- *   (first argument to execv), and use the remaining arguments
- *   as second argument to the execv() command.
- *
-*/
-
     va_end(args);
 
-    return true;
+    // Flush stdout before fork so buffered output is not duplicated in the child
+    fflush(stdout);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        fprintf(stderr, "do_exec: fork() failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    if (pid == 0) {
+        // Child process: exec the command. execv only returns on failure.
+        execv(command[0], command);
+        fprintf(stderr, "do_exec: execv() failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    // Parent process: wait for the child to finish
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        fprintf(stderr, "do_exec: waitpid() failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    if (WIFEXITED(status)) {
+        if (WEXITSTATUS(status) == 0) {
+            return true;
+        }
+        fprintf(stderr, "do_exec: child exited with status %d\n", WEXITSTATUS(status));
+        return false;
+    }
+
+    fprintf(stderr, "do_exec: child did not exit normally\n");
+    return false;
 }
 
 /**
@@ -80,20 +118,56 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
-
-
-/*
- * TODO
- *   Call execv, but first using https://stackoverflow.com/a/13784315/1446624 as a refernce,
- *   redirect standard out to a file specified by outputfile.
- *   The rest of the behaviour is same as do_exec()
- *
-*/
-
     va_end(args);
 
-    return true;
+    // Open the output file BEFORE forking (see SO answer: open in parent)
+    int fd = open(outputfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+    if (fd < 0) {
+        fprintf(stderr, "do_exec_redirect: open('%s') failed: %s\n",
+                outputfile, strerror(errno));
+        return false;
+    }
+
+    fflush(stdout);
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        fprintf(stderr, "do_exec_redirect: fork() failed: %s\n", strerror(errno));
+        close(fd);
+        return false;
+    }
+
+    if (pid == 0) {
+        // Child: redirect stdout to the file, then exec
+        if (dup2(fd, STDOUT_FILENO) < 0) {
+            fprintf(stderr, "do_exec_redirect: dup2() failed: %s\n", strerror(errno));
+            close(fd);
+            exit(EXIT_FAILURE);
+        }
+        close(fd);  // STDOUT_FILENO now refers to the same file; original fd unused
+
+        execv(command[0], command);
+        fprintf(stderr, "do_exec_redirect: execv() failed: %s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    // Parent: close our copy of the fd, then wait for the child
+    close(fd);
+
+    int status;
+    if (waitpid(pid, &status, 0) == -1) {
+        fprintf(stderr, "do_exec_redirect: waitpid() failed: %s\n", strerror(errno));
+        return false;
+    }
+
+    if (WIFEXITED(status)) {
+        if (WEXITSTATUS(status) == 0) {
+            return true;
+        }
+        fprintf(stderr, "do_exec_redirect: child exited with status %d\n", WEXITSTATUS(status));
+        return false;
+    }
+
+    fprintf(stderr, "do_exec_redirect: child did not exit normally\n");
+    return false;
 }
