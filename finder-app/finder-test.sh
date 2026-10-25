@@ -8,7 +8,18 @@ set -u
 NUMFILES=10
 WRITESTR=AELD_IS_FUN
 WRITEDIR=/tmp/aeld-data
-username=$(cat conf/username.txt)
+RESULT_FILE=/tmp/assignment4-result.txt
+
+# resolve the conf directory so the script works both
+#    on the Assignment 4 Buildroot target is /etc/finder-app/conf
+#    on the Assignment 3 manual rootfs is ./conf next to the script
+if [ -d /etc/finder-app/conf ]; then
+	CONF_DIR=/etc/finder-app/conf
+else
+	CONF_DIR=$(dirname "$0")/conf
+fi
+
+username=$(cat "${CONF_DIR}/username.txt")
 
 if [ $# -lt 3 ]
 then
@@ -32,7 +43,7 @@ echo "Writing ${NUMFILES} files containing string ${WRITESTR} to ${WRITEDIR}"
 rm -rf "${WRITEDIR}"
 
 # create $WRITEDIR if not assignment1
-assignment=`cat ../conf/assignment.txt`
+assignment=$(cat "${CONF_DIR}/assignment.txt")
 
 if [ $assignment != 'assignment1' ]
 then
