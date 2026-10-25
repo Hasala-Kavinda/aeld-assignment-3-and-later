@@ -13,6 +13,7 @@ RESULT_FILE=/tmp/assignment4-result.txt
 # resolve the conf directory so the script works both
 #    on the Assignment 4 Buildroot target is /etc/finder-app/conf
 #    on the Assignment 3 manual rootfs is ./conf next to the script
+
 if [ -d /etc/finder-app/conf ]; then
 	CONF_DIR=/etc/finder-app/conf
 else
@@ -65,10 +66,10 @@ fi
 
 for i in $( seq 1 $NUMFILES)
 do
-	./writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
+	writer "$WRITEDIR/${username}$i.txt" "$WRITESTR"
 done
 
-OUTPUTSTRING=$(./finder.sh "$WRITEDIR" "$WRITESTR")
+OUTPUTSTRING=$(finder.sh "$WRITEDIR" "$WRITESTR")
 
 # remove temporary directories
 rm -rf /tmp/aeld-data
