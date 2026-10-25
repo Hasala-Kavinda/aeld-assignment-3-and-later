@@ -1,5 +1,5 @@
 CC      ?= gcc
-CFLAGS  ?= -Wall -Wextra -g -O2
+CFLAGS  ?= -Wall -Wextra -g -O2 -static
 TARGET   = writer
 SRCS     = writer.c
 OBJS     = $(SRCS:.c=.o)
