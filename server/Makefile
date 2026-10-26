@@ -2,7 +2,7 @@
 # make CC=arm-linux-gnueabihf-gcc
 
 CC ?= gcc
-CFLAGS ?= -Wall -Werror -g -O2
+CFLAGS ?= -Wall -Werror -g
 TARGET = aesdsocket
 
 all: $(TARGET)
